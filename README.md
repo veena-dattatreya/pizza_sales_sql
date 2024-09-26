@@ -1,23 +1,17 @@
-# pizza_sales_sqlHere's a sample README file for a Pizza Sales SQL project:
 
----
 
 # Pizza Sales SQL Analysis
 
 ## Project Overview
 
-This project involves analyzing pizza sales data using SQL queries to gain insights into business performance, customer preferences, and trends. The data covers details about orders, customers, pizzas, and ingredients. The purpose of this analysis is to identify patterns in sales, understand customer behavior, and optimize menu offerings.
+This project involves analyzing pizza sales data using SQL queries to gain insights into business performance, customer  and trends. The data covers details about orders,  pizzas, and ingredients. The purpose of this analysis is to identify patterns in sales.
 
 ## Table of Contents
 
 1. [Data Description](#data-description)
 2. [SQL Queries](#sql-queries)
 3. [Key Insights](#key-insights)
-4. [Usage](#usage)
-5. [Dependencies](#dependencies)
-6. [Contributors](#contributors)
 
----
 
 ## Data Description
 
@@ -31,8 +25,11 @@ The database consists of several tables related to pizza sales, including:
 ### Sample Table 
 
 -orders
+
 -order details
+
 -pizza types
+
 -pizzas
 
 ---
@@ -111,7 +108,7 @@ FROM
 GROUP BY pizzas.size
 ORDER BY 1 DESC
 LIMIT 1
----
+```
 
 ### 6.List the top 5 most ordered pizza types along with their quantities.
 
@@ -125,30 +122,125 @@ FROM
 GROUP BY pizzas.size
 ORDER BY 1 DESC
 LIMIT 1
----
+```
+### 7.Join the necessary tables to find the total quantity of each pizza category ordered.
 
+```sql
+SELECT 
+    SUM(order_details.quantity) AS total_quantity,
+    pizza_types.category
+FROM
+    pizza_types
+        JOIN
+    pizzas ON pizza_types.pizza_type_id = pizzas.pizza_type_id
+        JOIN
+    order_details ON pizzas.pizza_id = order_details.pizza_id
+GROUP BY 2
+ORDER BY 1 DESC
+
+```
+
+### 8.Determine the distribution of orders by hour of the day.
+
+```sql
+select
+     extract (hour from order_time),count(order_id) from orders
+group by 1
+order by 1
+```
+
+### 9.Join relevant tables to find the category-wise distribution of pizzas.
+```sql
+SELECT 
+    category, COUNT(name) AS pizzas
+FROM
+    pizza_types
+GROUP BY 1
+```
+### 10.Group the orders by date and calculate the average number of pizzas ordered per day.
+```sql
+with cte as
+(
+SELECT 
+    orders.order_date, SUM(order_details.quantity) AS quantity
+FROM
+    orders
+        JOIN
+    order_details ON orders.order_id = order_details.order_id
+GROUP BY 1
+ORDER BY 1
+)
+select round(avg(quantity)) from cte
+```
+### 11.Determine the top 3 most orderd pizza types based on the revenue
+```sql
+SELECT 
+    pt.name, SUM(p.price * od.quantity) AS revenue
+FROM
+    pizzas p
+        JOIN
+    pizza_types pt ON p.pizza_type_id = pt.pizza_type_id
+        JOIN
+    order_details od ON p.pizza_id = od.pizza_id
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 3
+```
+### 12.Calculate the percentage contribution of each pizza type to total revenue.with total_revenue as
+```sql
+select pt.category,round((round(sum(od.quantity*p.price))::numeric/(select 
+    round(sum(od.quantity*p.price))
+from 
+    order_details od 
+	  inner join 
+	  pizzas p
+      on od.pizza_id=p.pizza_id))*100) as
+total_revenue from pizzas p
+join
+pizza_types pt
+on p.pizza_type_id=pt.pizza_type_id
+join order_details od
+on od.pizza_id=p.pizza_id
+group by 1
+```
+
+
+### 13.Analyze the cumulative revenue generated over time.
+
+```sql
+with sales as(
+select orders.order_date,
+sum(order_details.quantity*pizzas.price)as revenue
+from orders join order_details
+on orders.order_id=order_details.order_id
+join
+pizzas on pizzas.pizza_id=order_details.pizza_id
+group by 1 )
+
+select order_date,revenue,sum(revenue)  over(order by order_date) as cumulative_revenue from sales
+```
+### 14.Determine the top 3 most ordered pizza types based on revenue for each pizza category.
+```sql
+with new_pizza as(
+select pizza_types.category,pizza_types.name, sum(pizzas.price*order_details.quantity)as rev
+from
+pizza_types join pizzas on pizza_types.pizza_type_id=pizzas.pizza_type_id
+join order_details 
+ on order_details.pizza_id=pizzas.pizza_id
+group by 1,2)
+select category,name,rev from
+(select category,name,rev,dense_rank() over(partition by category order by rev desc) as rnk from
+new_pizza)
+where rnk<=3
+```
 
 ## Key Insights
 
-- *Best-Selling Pizza*: Pepperoni was the most ordered pizza, especially in the medium size.
-- *Sales Trends*: Sales peak during weekends and holidays, with significant increases during special promotions.
-- *Customer Preferences*: Large pizzas are more frequently ordered than small or medium-sized pizzas.
-- *Ingredient Usage*: Mozzarella and pepperoni are the most commonly used ingredients, suggesting their popularity with customers.
-
+- *Best-Selling Pizza*:  most ordered pizza, especially in the category,size.
+- *Sales Trends*: cumulative Sales 
 ---
 
-## Usage
 
-1. *Clone the repository*: Download the project files to your local machine.
-   bash
-   git clone https://github.com/your-username/pizza-sales-sql.git
-   
-   
-2. *Import the SQL database*: Load the provided pizza_sales.sql file into your SQL database system (e.g., MySQL, PostgreSQL).
-
-3. *Run the queries*: Execute the SQL queries on your SQL client (e.g., MySQL Workbench, pgAdmin) to retrieve sales insights.
-
----
 
 ## Dependencies
 
@@ -158,11 +250,3 @@ LIMIT 1
 
 ---
 
-## Contributors
-
-- *Your Name*: Data Analysis and SQL Query Author
-- *Collaborator's Name*: Database Design
-
-For any questions or suggestions, feel free to reach out via email at your-email@example.com.
-
----
